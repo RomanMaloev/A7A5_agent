@@ -1,1 +1,465 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>A7A5 agent — Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #161a22;
+      --text: #e7e9ee;
+      --muted: #a6adbb;
+      --accent: #4c8cf5;
+      --positive: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --stroke: #232a36;
+      --shadow: 0 8px 24px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    /* Telegram theme mapping */
+    .tg-theme {
+      --bg: var(--tg-theme-bg-color, #0f1115);
+      --card: color-mix(in srgb, var(--bg), #ffffff 6%);
+      --text: var(--tg-theme-text-color, #e7e9ee);
+      --muted: var(--tg-theme-hint-color, #a6adbb);
+      --accent: var(--tg-theme-button-color, #4c8cf5);
+      --accent-text: var(--tg-theme-button-text-color, #ffffff);
+      --stroke: var(--tg-theme-secondary-bg-color, #232a36);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+    }
+    .app {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+    header.app-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: grid; place-items: center; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #7aa6ff);
+      color: #fff;
+    }
+    .title-wrap { flex: 1; }
+    .title { font-size: 18px; font-weight: 700; line-height: 1.15; }
+    .subtitle { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    @media (min-width: 720px) {
+      .grid { grid-template-columns: 1.1fr .9fr; }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .card > .card-body { padding: 16px; }
+    .section-title { font-size: 14px; color: var(--muted); margin-bottom: 8px; letter-spacing: .2px; }
+
+    /* Balance card */
+    .balance {
+      display: grid; gap: 12px;
+    }
+    .balance-amount { font-size: 32px; font-weight: 800; letter-spacing: .5px; }
+    .balance-row { display:flex; gap:10px; align-items:center; color:var(--muted); font-size:13px; }
+
+    /* Quick actions */
+    .actions {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap:8px;
+      padding: 12px; border-radius: 12px; border: 1px solid var(--stroke);
+      background: color-mix(in srgb, var(--bg), #fff 8%);
+      color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px;
+      cursor: pointer; user-select: none; transition: transform .05s ease, filter .2s ease;
+    }
+    .btn:active { transform: translateY(1px) scale(.99); }
+    .btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+    .btn.ghost { background: transparent; }
+    .btn.block { width: 100%; }
+
+    /* List */
+    .list { display: grid; gap: 10px; }
+    .item {
+      display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+      padding: 12px; border:1px solid var(--stroke); border-radius: 12px; background: color-mix(in srgb, var(--bg), #fff 6%);
+    }
+    .item .icon { width: 36px; height: 36px; border-radius: 10px; display:grid; place-items:center; background: color-mix(in srgb, var(--accent), #000 25%); color:#fff; font-weight:700; }
+    .item .meta { font-size: 12px; color: var(--muted); }
+
+    /* Footer actions */
+    .footer-actions { display:flex; gap:10px; }
+
+    /* Forms */
+    .form { display:grid; gap:10px; }
+    .field { display:grid; gap:6px; }
+    .field label { font-size:13px; color: var(--muted); }
+    .input, .select {
+      width:100%; padding:12px 12px; border-radius: 12px; border:1px solid var(--stroke);
+      background: color-mix(in srgb, var(--bg), #fff 8%); color: var(--text); font-size: 15px;
+    }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; display: none; }
+    .modal[open] { display: grid; place-items: end center; padding: 16px; background: rgba(0,0,0,.35); }
+    .sheet {
+      width: 100%; max-width: 960px; background: var(--card); border:1px solid var(--stroke); border-radius: 20px 20px 16px 16px; box-shadow: var(--shadow);
+      padding: 16px; animation: slideUp .18s ease;
+    }
+    .sheet .handle { width: 46px; height: 4px; border-radius: 4px; background: var(--stroke); margin: 0 auto 12px; }
+    .sheet .sheet-title { font-weight: 700; font-size: 16px; margin-bottom: 12px; }
+
+    @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .qrbox { border:1px dashed var(--stroke); border-radius: 12px; height: 180px; display:grid; place-items:center; color: var(--muted); }
+
+    .muted { color: var(--muted); }
+    .success { color: var(--positive); }
+    .warning { color: var(--warning); }
+  </style>
+</head>
+<body class="tg-theme">
+  <div class="app" id="app">
+    <header class="app-header">
+      <div class="logo">A7</div>
+      <div class="title-wrap">
+        <div class="title">A7A5 agent</div>
+        <div class="subtitle">Официальный платёжный агент. Платежи • Переводы • Учёт</div>
+      </div>
+      <button class="btn ghost" id="btn-settings" aria-label="Настройки">⚙️</button>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT COLUMN -->
+      <section class="card">
+        <div class="card-body balance">
+          <div class="section-title">Баланс</div>
+          <div class="balance-amount" id="balance-amount">0.00</div>
+          <div class="balance-row">
+            <span id="balance-currency">USDC</span>
+            <span class="muted" id="balance-fiat">≈ $0.00</span>
+          </div>
+
+          <div class="actions" role="group" aria-label="Быстрые действия">
+            <button class="btn" data-action="send">Отправить</button>
+            <button class="btn" data-action="request">Запросить</button>
+            <button class="btn" data-action="topup">Пополнить</button>
+            <button class="btn" data-action="withdraw">Вывести</button>
+            <button class="btn" data-action="swap">Обмен</button>
+            <button class="btn" data-action="qr">QR</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN -->
+      <section class="card">
+        <div class="card-body">
+          <div class="section-title">Статус</div>
+          <div class="list">
+            <div class="item">
+              <div class="icon">ID</div>
+              <div>
+                <div><strong id="user-name">Гость</strong></div>
+                <div class="meta">UserID: <span id="user-id">—</span></div>
+              </div>
+              <div class="success" id="kyc-badge">KYC: не требуется</div>
+            </div>
+            <div class="item">
+              <div class="icon">WL</div>
+              <div>
+                <div><strong>Кошелёк</strong></div>
+                <div class="meta" id="wallet-meta">Не подключён</div>
+              </div>
+              <button class="btn primary" id="btn-connect">Подключить</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ACTIVITY -->
+    <section class="card">
+      <div class="card-body">
+        <div class="section-title">Последние операции</div>
+        <div class="list" id="activity-list">
+          <div class="item">
+            <div class="icon">⇄</div>
+            <div>
+              <div><strong>Нет операций</strong></div>
+              <div class="meta">История появится после первых транзакций</div>
+            </div>
+            <div class="muted">—</div>
+          </div>
+        </div>
+        <div class="footer-actions" style="margin-top:12px;">
+          <button class="btn block" id="btn-open-invoice">Открыть счёт</button>
+          <button class="btn block" id="btn-scan-qr">Сканировать QR</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="muted" style="text-align:center; font-size:12px; padding: 4px 0 16px;">
+      A7A5 agent • Прозрачные операции на базе децентрализованной учётной системы
+    </footer>
+  </div>
+
+  <!-- SEND SHEET -->
+  <dialog class="modal" id="modal-send">
+    <div class="sheet">
+      <div class="handle"></div>
+      <div class="sheet-title">Отправить платёж</div>
+      <form class="form" id="form-send">
+        <div class="field">
+          <label for="send-to">Получатель (ID / @username / адрес)</label>
+          <input class="input" id="send-to" name="to" placeholder="@username или адрес" required />
+        </div>
+        <div class="field">
+          <label for="send-amount">Сумма</label>
+          <input class="input" id="send-amount" name="amount" type="number" step="0.000001" min="0" placeholder="0.00" required />
+        </div>
+        <div class="field">
+          <label for="send-asset">Актив</label>
+          <select class="select" id="send-asset" name="asset">
+            <option value="USDC">USDC</option>
+            <option value="GOOD">GOOD</option>
+            <option value="SOL">SOL</option>
+          </select>
+        </div>
+        <div class="footer-actions">
+          <button type="button" class="btn" data-close="#modal-send">Отмена</button>
+          <button type="submit" class="btn primary">Продолжить</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- REQUEST SHEET -->
+  <dialog class="modal" id="modal-request">
+    <div class="sheet">
+      <div class="handle"></div>
+      <div class="sheet-title">Запросить платёж</div>
+      <form class="form" id="form-request">
+        <div class="field">
+          <label for="req-from">Плательщик (необязательно)</label>
+          <input class="input" id="req-from" name="from" placeholder="@username или ID" />
+        </div>
+        <div class="field">
+          <label for="req-amount">Сумма</label>
+          <input class="input" id="req-amount" name="amount" type="number" step="0.000001" min="0" placeholder="0.00" required />
+        </div>
+        <div class="field">
+          <label for="req-asset">Актив</label>
+          <select class="select" id="req-asset" name="asset">
+            <option value="USDC">USDC</option>
+            <option value="GOOD">GOOD</option>
+            <option value="SOL">SOL</option>
+          </select>
+        </div>
+        <div class="footer-actions">
+          <button type="button" class="btn" data-close="#modal-request">Отмена</button>
+          <button type="submit" class="btn primary">Создать счёт</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- QR SHEET -->
+  <dialog class="modal" id="modal-qr">
+    <div class="sheet">
+      <div class="handle"></div>
+      <div class="sheet-title">Мой QR для получения</div>
+      <div class="qrbox" id="qr-box">QR будет здесь</div>
+      <div class="footer-actions" style="margin-top:12px;">
+        <button class="btn" data-close="#modal-qr">Закрыть</button>
+        <button class="btn primary" id="btn-copy-link">Скопировать ссылку</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+
+    function initTelegram() {
+      if (!tg) return;
+      tg.ready();
+      tg.expand();
+      // Match app theme with Telegram
+      document.body.classList.add('tg-theme');
+
+      // Setup header & back button
+      tg.BackButton.hide();
+      tg.MainButton.text = 'Готово';
+      tg.MainButton.color = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#4c8cf5';
+      tg.MainButton.textColor = getComputedStyle(document.body).getPropertyValue('--accent-text').trim() || '#ffffff';
+      tg.MainButton.hide();
+
+      // User data
+      const user = tg.initDataUnsafe?.user;
+      if (user) {
+        document.getElementById('user-name').textContent = user.first_name + (user.last_name ? (' ' + user.last_name) : '');
+        document.getElementById('user-id').textContent = user.id;
+      }
+
+      // Haptics helper
+      const haptic = (type = 'impact') => {
+        try {
+          const H = tg.HapticFeedback; if (!H) return;
+          if (type === 'impact') H.impactOccurred('medium');
+          if (type === 'success') H.notificationOccurred('success');
+          if (type === 'warning') H.notificationOccurred('warning');
+          if (type === 'error') H.notificationOccurred('error');
+        } catch {}
+      };
+
+      // Wire actions
+      document.querySelectorAll('[data-action]')?.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const a = btn.dataset.action;
+          if (a === 'send') openModal('#modal-send');
+          if (a === 'request') openModal('#modal-request');
+          if (a === 'qr') openModal('#modal-qr');
+          if (a === 'topup') notify('Пополнение скоро будет доступно');
+          if (a === 'withdraw') notify('Вывод скоро будет доступен');
+          if (a === 'swap') notify('Обмен скоро будет доступен');
+          haptic('impact');
+        })
+      });
+
+      // Settings click
+      document.getElementById('btn-settings')?.addEventListener('click', () => {
+        notify('Настройки скоро будут доступны');
+      });
+
+      // Connect wallet (placeholder for Solana or other)
+      document.getElementById('btn-connect')?.addEventListener('click', async () => {
+        notify('Подключение кошелька...');
+        // TODO: integrate wallet provider (e.g., Solana Mobile Wallet Adapter / TonConnect / WalletConnect)
+        document.getElementById('wallet-meta').textContent = 'Подключение эмулятора кошелька';
+      });
+
+      // Forms
+      document.getElementById('form-send')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        // TODO: call backend createTransfer(data)
+        notify(`Отправка: ${data.amount} ${data.asset} → ${data.to}`);
+        closeModal('#modal-send');
+        appendActivity({ kind: 'send', title: `Перевод ${data.asset}`, subtitle: `Получатель: ${data.to}`, amount: '-' + Number(data.amount).toFixed(2) });
+        haptic('success');
+      });
+
+      document.getElementById('form-request')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        // TODO: call backend createInvoice(data)
+        const link = makeDeepLink({ type: 'invoice', ...data });
+        setQR(link);
+        openModal('#modal-qr');
+        notify('Счёт создан');
+        closeModal('#modal-request');
+        appendActivity({ kind: 'request', title: `Запрос ${data.asset}`, subtitle: `От: ${data.from || 'любой пользователь'}`, amount: '+' + Number(data.amount).toFixed(2) });
+        haptic('success');
+      });
+
+      document.getElementById('btn-open-invoice')?.addEventListener('click', () => openModal('#modal-request'));
+      document.getElementById('btn-scan-qr')?.addEventListener('click', () => notify('Сканер QR в разработке'));
+
+      document.querySelectorAll('[data-close]')?.forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.close)));
+
+      document.getElementById('btn-copy-link')?.addEventListener('click', async () => {
+        const link = document.getElementById('qr-box')?.dataset?.link || location.href;
+        try {
+          await navigator.clipboard.writeText(link);
+          notify('Ссылка скопирована'); haptic('success');
+        } catch { notify('Не удалось скопировать'); haptic('warning'); }
+      });
+
+      // Demo data
+      setBalance(0, 'USDC');
+    }
+
+    function setBalance(amount, currency) {
+      document.getElementById('balance-amount').textContent = Number(amount).toFixed(2);
+      document.getElementById('balance-currency').textContent = currency;
+      document.getElementById('balance-fiat').textContent = `≈ $${Number(amount).toFixed(2)}`;
+    }
+
+    function appendActivity(entry) {
+      const list = document.getElementById('activity-list');
+      if (!list) return;
+      const node = document.createElement('div');
+      node.className = 'item';
+      node.innerHTML = `
+        <div class="icon">${entry.kind === 'send' ? '↗' : entry.kind === 'request' ? '⟲' : '⇄'}</div>
+        <div>
+          <div><strong>${entry.title}</strong></div>
+          <div class="meta">${entry.subtitle || ''}</div>
+        </div>
+        <div>${entry.amount || ''}</div>
+      `;
+      if (list.firstElementChild && list.firstElementChild.querySelector('.meta')?.textContent?.includes('История')) {
+        list.firstElementChild.remove();
+      }
+      list.prepend(node);
+    }
+
+    function notify(msg) {
+      if (tg?.showPopup) {
+        tg.showPopup({ title: 'A7A5 agent', message: msg, buttons: [{ type: 'ok' }] });
+      } else {
+        console.log('[A7A5]', msg);
+        alert(msg);
+      }
+    }
+
+    function openModal(sel) { document.querySelector(sel)?.setAttribute('open',''); }
+    function closeModal(sel) { document.querySelector(sel)?.removeAttribute('open'); }
+
+    function makeDeepLink(params) {
+      // Placeholder deep link builder
+      const base = 'https://t.me/your_bot?startapp='; // TODO: replace with real bot username
+      const payload = encodeURIComponent(JSON.stringify(params));
+      return base + payload;
+    }
+
+    function setQR(text) {
+      // Lightweight fallback: show text as placeholder; integrate real QR later
+      const box = document.getElementById('qr-box');
+      if (!box) return;
+      box.textContent = text;
+      box.dataset.link = text;
+    }
+
+    // Boot
+    initTelegram();
+  </script>
+</body>
+</html>
 
